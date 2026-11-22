@@ -4,11 +4,10 @@ A research-oriented simulation framework for the wireless physical layer, focuse
 **MIMO detection** with classical linear receivers as a rigorously validated baseline, and
 model-driven / learned detectors as the research target.
 
-> **Status: foundation phase.** The Gray-mapped QPSK mapper/demapper and a calibrated complex
-> AWGN generator are implemented and validated against the AWGN closed-form bit error rate.
-> Fading channels, detectors and the BER engine are not implemented, and **no experimental
-> results have been produced**. Nothing in this repository should be read as an empirical
-> finding at this stage.
+> **Status: foundation phase.** QPSK, spatial-multiplexed MIMO transmit signals, a flat Rayleigh
+> channel and calibrated complex AWGN are implemented and unit-tested. Detectors and the BER
+> engine are not implemented, and **no experimental results have been produced**. Nothing in this
+> repository should be read as an empirical finding at this stage.
 
 ---
 
@@ -125,7 +124,8 @@ reference curve against which the simulator can be validated exactly.
 | Component | Status |
 |---|---|
 | QPSK mapping and demapping | implemented in `modulation/qpsk.py`; unit-energy, Gray-mapped, tested against the AWGN closed form |
-| Flat Rayleigh channel generator | not started |
+| MIMO transmit signal generation | implemented in `mimo.py`; independent Gray-QPSK streams, `x` shape `(Nt, Ns)`, `||x||^2 = Nt` per column |
+| Flat Rayleigh channel generator | implemented in `channel/rayleigh.py`; i.i.d. `CN(0, 1)`, seeded, `E[||H||_F^2] = Nt Nr` |
 | AWGN generator with SNR calibration | implemented in `channel/awgn.py`; `sigma^2 = 1/(Es/N0)`, seeded, with circularity and per-rail variance tests |
 | Zero forcing detector | not started |
 | MMSE detector | not started |
@@ -197,6 +197,35 @@ print(np.mean(np.abs(noise) ** 2))
 The bit array is interpreted along its last axis: `bits[..., 0]` drives the in-phase rail and
 `bits[..., 1]` the quadrature rail. Bit 0 selects the positive rail. The AWGN generator is
 modulation-agnostic and takes a linear `Es/N0`; convert with `qpsk.es_n0_from_eb_n0` first.
+
+A spatial-multiplexed MIMO frame and the corresponding received signal:
+
+```python
+import numpy as np
+
+from wireless_phy_lab import mimo
+from wireless_phy_lab.channel import awgn, rayleigh
+from wireless_phy_lab.modulation import qpsk
+
+es_n0 = qpsk.es_n0_from_eb_n0(10.0 ** (6.0 / 10.0))   # 6 dB Eb/N0
+
+rng = np.random.default_rng(1)
+bits, x = mimo.generate_transmit_signal(2, 1_000, rng=rng)
+channel = rayleigh.generate_rayleigh(2, 2, (1_000,), rng=rng)
+noise = awgn.generate_noise((1_000, 2), es_n0, rng=rng)
+y = np.einsum("sij,js->si", channel, x) + noise
+
+print(bits.shape, x.shape, channel.shape, y.shape)
+# (2, 1000, 2) (2, 1000) (1000, 2, 2) (1000, 2)
+
+print(np.unique(np.sum(np.abs(x) ** 2, axis=0)))
+# [2.]
+```
+
+`x[j, s]` is the symbol transmitted from antenna `j` in channel use `s`. Every column carries
+`Nt` unit-energy symbols, so `||x[:, s]||^2 = Nt`. The channel has one independent matrix per
+channel use, and `y[s] = channel[s] @ x[:, s] + noise[s]`. The composition is written explicitly
+here; there is no link wrapper or detector yet.
 
 ---
 
