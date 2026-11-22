@@ -242,3 +242,8 @@ Recent work that frames the direction of travel:
 ## License
 
 Not yet chosen. No license is granted at this time.
+
+## Author
+Amirhossein Solati
+M.sc
+KNTU
