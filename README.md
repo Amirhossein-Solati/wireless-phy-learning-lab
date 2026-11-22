@@ -4,10 +4,11 @@ A research-oriented simulation framework for the wireless physical layer, focuse
 **MIMO detection** with classical linear receivers as a rigorously validated baseline, and
 model-driven / learned detectors as the research target.
 
-> **Status: foundation phase.** The Gray-mapped QPSK mapper and demapper are implemented and
-> validated against the AWGN closed-form bit error rate. The channel model, detectors and BER
-> engine are not implemented, and **no experimental results have been produced**. Nothing in this
-> repository should be read as an empirical finding at this stage.
+> **Status: foundation phase.** The Gray-mapped QPSK mapper/demapper and a calibrated complex
+> AWGN generator are implemented and validated against the AWGN closed-form bit error rate.
+> Fading channels, detectors and the BER engine are not implemented, and **no experimental
+> results have been produced**. Nothing in this repository should be read as an empirical
+> finding at this stage.
 
 ---
 
@@ -125,7 +126,7 @@ reference curve against which the simulator can be validated exactly.
 |---|---|
 | QPSK mapping and demapping | implemented in `modulation/qpsk.py`; unit-energy, Gray-mapped, tested against the AWGN closed form |
 | Flat Rayleigh channel generator | not started |
-| AWGN generator with SNR calibration | not started |
+| AWGN generator with SNR calibration | implemented in `channel/awgn.py`; `sigma^2 = 1/(Es/N0)`, seeded, with circularity and per-rail variance tests |
 | Zero forcing detector | not started |
 | MMSE detector | not started |
 | Exhaustive maximum-likelihood detector | not started |
@@ -163,6 +164,7 @@ QPSK mapping, demapping, and the `Es = 2 Eb` conversion:
 ```python
 import numpy as np
 
+from wireless_phy_lab.channel import awgn
 from wireless_phy_lab.modulation import qpsk
 
 bits = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=np.uint8)
@@ -185,10 +187,16 @@ eb_n0_db = 6.0
 es_n0 = qpsk.es_n0_from_eb_n0(10.0 ** (eb_n0_db / 10.0))
 print(1.0 / es_n0)
 # 0.125594321575479
+
+# The same variance, measured on a seeded noise realisation.
+noise = awgn.generate_noise(1_000_000, es_n0, rng=np.random.default_rng(0))
+print(np.mean(np.abs(noise) ** 2))
+# 0.12555099180448068
 ```
 
 The bit array is interpreted along its last axis: `bits[..., 0]` drives the in-phase rail and
-`bits[..., 1]` the quadrature rail. Bit 0 selects the positive rail.
+`bits[..., 1]` the quadrature rail. Bit 0 selects the positive rail. The AWGN generator is
+modulation-agnostic and takes a linear `Es/N0`; convert with `qpsk.es_n0_from_eb_n0` first.
 
 ---
 
