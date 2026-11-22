@@ -4,10 +4,10 @@ A research-oriented simulation framework for the wireless physical layer, focuse
 **MIMO detection** with classical linear receivers as a rigorously validated baseline, and
 model-driven / learned detectors as the research target.
 
-> **Status: foundation phase.** QPSK, spatial-multiplexed MIMO transmit signals, a flat Rayleigh
-> channel, calibrated complex AWGN, and ZF/MMSE linear detectors are implemented and unit-tested.
-> ML, SIC and the BER engine are not implemented, and **no experimental results have been
-> produced**. Nothing in this repository should be read as an empirical finding at this stage.
+> **Status: validated baseline.** QPSK, spatial-multiplexed MIMO, flat Rayleigh fading, calibrated
+> AWGN, ZF/MMSE detection, and a seeded Monte Carlo BER engine are implemented. The first 2x2 and
+> 4x4 BER experiments are stored in `results/` with their configuration and seeds. ML and SIC are
+> not implemented. These are simulation results, not measurements.
 
 ---
 
@@ -129,8 +129,9 @@ reference curve against which the simulator can be validated exactly.
 | AWGN generator with SNR calibration | implemented in `channel/awgn.py`; `sigma^2 = 1/(Es/N0)`, seeded, with circularity and per-rail variance tests |
 | Zero forcing detector | implemented in `detection/linear.py`; direct normal-equation solve, no inverse, `Nr >= Nt`, condition-number diagnostic |
 | MMSE detector | implemented in `detection/linear.py`; biased variant (D-05), `(H^H H + sigma^2 I)^{-1} H^H`, tested against the explicit definition |
+| Monte Carlo BER engine | implemented in `evaluation/`; binomial error counts, Wilson confidence intervals, seeded error-count stopping |
+| BER experiment and plots | implemented in `experiments/ber_mimo.py` and `experiments/plot_ber_mimo.py`; 2x2 and 4x4 results in `results/` |
 | Exhaustive maximum-likelihood detector | not started |
-| BER engine with confidence intervals | not started |
 
 ---
 
@@ -151,7 +152,7 @@ pip install -e ".[dev,plot,config]"
 Run the checks:
 
 ```bash
-ruff check src tests
+ruff check src tests experiments
 pytest -q
 ```
 
@@ -250,19 +251,67 @@ print(np.allclose(zf_detect(channel, clean), x.T, atol=1e-12))
 `(H^H H + sigma^2 I) x = H^H y`; its argument is the complex noise variance, not an SNR. Both
 return symbol estimates of shape `(Ns, Nt)` for batched input; apply `qpsk.demap` for bits.
 
+Run the reproducible BER experiment and regenerate the figures:
+
+```bash
+python experiments/ber_mimo.py
+python experiments/plot_ber_mimo.py
+```
+
+The simulation configuration is `experiments/configs/ber_mimo.yaml`. The exact configuration used,
+the per-point seeds, and the raw error counts are stored in `results/ber_mimo.json`; a flat table
+is in `results/ber_mimo.csv`.
+
 ---
 
 ## Experimental results
 
-**No experiments have been run.** This section will only ever contain numbers produced by scripts in
-`experiments/` and stored under `results/`, with the configuration and random seed recorded for each
-figure.
+The first experiment sweeps per-stream `Eb/N0` from 0 to 20 dB in 2 dB steps for `2x2` and `4x4`
+antennas, with ZF and biased MMSE. The system is uncoded Gray QPSK over i.i.d. `CN(0,1)` Rayleigh
+fading with perfect CSI and known noise variance.
+
+| Setting | Value |
+|---|---|
+| Base seed | `20261127` |
+| Error-count target | 2000 per point (batch overshoot allowed) |
+| Safety limit | 8,000,000 bits per point |
+| Batch size | 20,000 channel uses |
+| Confidence interval | 95% Wilson |
+| BER reporting | aggregate in the table and plots; per-stream counts in the JSON (D-07) |
+| Total simulated bits | 16,720,000 |
+
+The configuration is in `experiments/configs/ber_mimo.yaml`; the exact copy, per-point seeds, and
+counts are in `results/ber_mimo.json` and `results/ber_mimo.csv`. Each JSON record contains the
+aggregate BER and one error count plus Wilson interval per spatial stream (D-07); the table and
+figures show the aggregate.
+
+| System | Detector | 0 dB | 10 dB | 20 dB |
+|---|---|---|---|---|
+| 2x2 | ZF | 1.460e-1 | 2.296e-2 | 2.518e-3 |
+| 2x2 | MMSE | 1.061e-1 | 1.550e-2 | 1.718e-3 |
+| 4x4 | ZF | 1.465e-1 | 2.314e-2 | 2.587e-3 |
+| 4x4 | MMSE | 6.563e-2 | 8.403e-3 | 8.746e-4 |
+| reference | ZF closed form (8.4) | 1.4645e-1 | 2.3269e-2 | 2.4814e-3 |
+
+
+The ZF simulations agree with the exact closed form within the 95% intervals, and the 2x2 and 4x4
+ZF curves overlay within Monte Carlo error, as predicted for square arrays at fixed per-stream
+`Eb/N0`. MMSE is better at low SNR and improves further with the larger array. MMSE is the biased
+variant; for QPSK the real positive bias does not change the hard decisions. No diversity-order
+slope is claimed from this experiment.
 
 ---
 
 ## Figures
 
-No figures yet. Final plots will be placed in `results/figures/`.
+![2x2 BER versus Eb/N0](results/figures/ber_mimo_2x2.png)
+
+*Figure 1. 2x2 MIMO, uncoded QPSK over i.i.d. Rayleigh fading. Markers are Monte Carlo estimates
+with 95% Wilson intervals; the dashed line is the exact ZF curve of equation (8.4).*
+
+![4x4 BER versus Eb/N0](results/figures/ber_mimo_4x4.png)
+
+*Figure 2. 4x4 MIMO, same configuration as Figure 1.*
 
 ---
 
@@ -320,13 +369,14 @@ Recent work that frames the direction of travel:
 
 **Future work, in intended order**
 
-1. Successive-cancellation detection (V-BLAST style), as an intermediate baseline.
-2. Higher-order QAM and larger arrays, where the linear-to-optimal gap becomes large.
-3. Sphere decoding, for a complexity-performance Pareto analysis.
-4. Spatially correlated channels.
-5. Model-driven detectors (deep unfolding) benchmarked against the maximum-likelihood bound.
-6. Imperfect CSI and deep-learning channel estimation.
-7. MIMO-OFDM with standardised channel models, and integration with Sionna.
+1. Exhaustive maximum-likelihood reference and measured diversity slopes.
+2. Successive-cancellation detection (V-BLAST style), as an intermediate baseline.
+3. Higher-order QAM and larger arrays, where the linear-to-optimal gap becomes large.
+4. Sphere decoding, for a complexity-performance Pareto analysis.
+5. Spatially correlated channels.
+6. Model-driven detectors (deep unfolding) benchmarked against the maximum-likelihood bound.
+7. Imperfect CSI and deep-learning channel estimation.
+8. MIMO-OFDM with standardised channel models, and integration with Sionna.
 
 ---
 

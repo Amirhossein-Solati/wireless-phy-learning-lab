@@ -1,0 +1,18 @@
+# Monte Carlo BER experiment: uncoded QPSK, i.i.d. Rayleigh, perfect CSI.
+# The x-axis is per-stream Eb/N0 (decision D-01).
+seed: 20261127
+confidence: 0.95
+target_errors: 2000
+max_bits: 8000000
+batch_symbols: 20000
+eb_n0_db: [0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0]
+systems:
+  - name: "2x2"
+    nr: 2
+    nt: 2
+  - name: "4x4"
+    nr: 4
+    nt: 4
+detectors: ["zf", "mmse"]
+output_dir: "results"
+figure_dir: "results/figures"
