@@ -1,0 +1,47 @@
+# local-only files
+/AGENTS.md
+/PROJECT_BRIEF.md
+/TASKS.md
+/docs/
+
+# Environment
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+data/raw/
+data/processed/
+
+# Model checkpoints
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Experiment outputs
+logs/
+outputs/
+results/raw/
+
+# OS
+.DS_Store
+Thumbs.db
