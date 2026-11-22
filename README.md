@@ -5,9 +5,9 @@ A research-oriented simulation framework for the wireless physical layer, focuse
 model-driven / learned detectors as the research target.
 
 > **Status: foundation phase.** QPSK, spatial-multiplexed MIMO transmit signals, a flat Rayleigh
-> channel and calibrated complex AWGN are implemented and unit-tested. Detectors and the BER
-> engine are not implemented, and **no experimental results have been produced**. Nothing in this
-> repository should be read as an empirical finding at this stage.
+> channel, calibrated complex AWGN, and ZF/MMSE linear detectors are implemented and unit-tested.
+> ML, SIC and the BER engine are not implemented, and **no experimental results have been
+> produced**. Nothing in this repository should be read as an empirical finding at this stage.
 
 ---
 
@@ -127,8 +127,8 @@ reference curve against which the simulator can be validated exactly.
 | MIMO transmit signal generation | implemented in `mimo.py`; independent Gray-QPSK streams, `x` shape `(Nt, Ns)`, `||x||^2 = Nt` per column |
 | Flat Rayleigh channel generator | implemented in `channel/rayleigh.py`; i.i.d. `CN(0, 1)`, seeded, `E[||H||_F^2] = Nt Nr` |
 | AWGN generator with SNR calibration | implemented in `channel/awgn.py`; `sigma^2 = 1/(Es/N0)`, seeded, with circularity and per-rail variance tests |
-| Zero forcing detector | not started |
-| MMSE detector | not started |
+| Zero forcing detector | implemented in `detection/linear.py`; direct normal-equation solve, no inverse, `Nr >= Nt`, condition-number diagnostic |
+| MMSE detector | implemented in `detection/linear.py`; biased variant (D-05), `(H^H H + sigma^2 I)^{-1} H^H`, tested against the explicit definition |
 | Exhaustive maximum-likelihood detector | not started |
 | BER engine with confidence intervals | not started |
 
@@ -225,7 +225,30 @@ print(np.unique(np.sum(np.abs(x) ** 2, axis=0)))
 `x[j, s]` is the symbol transmitted from antenna `j` in channel use `s`. Every column carries
 `Nt` unit-energy symbols, so `||x[:, s]||^2 = Nt`. The channel has one independent matrix per
 channel use, and `y[s] = channel[s] @ x[:, s] + noise[s]`. The composition is written explicitly
-here; there is no link wrapper or detector yet.
+here; there is no link wrapper yet, and the detectors consume `channel` and `y` directly.
+
+Zero forcing and biased MMSE on the same frame:
+
+```python
+from wireless_phy_lab.detection import mmse_detect, zf_detect
+
+noise_variance = 1.0 / es_n0
+x_zf = zf_detect(channel, y)
+x_mmse = mmse_detect(channel, y, noise_variance)
+
+print(x_zf.shape, x_mmse.shape)
+# (1000, 2) (1000, 2)
+
+# Noiseless ZF recovers the transmitted frame. MMSE is biased, but for QPSK
+# the real positive bias does not change the hard decisions.
+clean = np.einsum("sij,sj->si", channel, x.T)
+print(np.allclose(zf_detect(channel, clean), x.T, atol=1e-12))
+# True
+```
+
+`zf_detect` solves `(H^H H) x = H^H y` directly and requires `Nr >= Nt`. `mmse_detect` solves
+`(H^H H + sigma^2 I) x = H^H y`; its argument is the complex noise variance, not an SNR. Both
+return symbol estimates of shape `(Ns, Nt)` for batched input; apply `qpsk.demap` for bits.
 
 ---
 
