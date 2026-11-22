@@ -4,8 +4,9 @@ A research-oriented simulation framework for the wireless physical layer, focuse
 **MIMO detection** with classical linear receivers as a rigorously validated baseline, and
 model-driven / learned detectors as the research target.
 
-> **Status: research phase.** The mathematical model is specified and awaiting approval. No
-> simulation code exists yet and **no experimental results have been produced**. Nothing in this
+> **Status: foundation phase.** The Gray-mapped QPSK mapper and demapper are implemented and
+> validated against the AWGN closed-form bit error rate. The channel model, detectors and BER
+> engine are not implemented, and **no experimental results have been produced**. Nothing in this
 > repository should be read as an empirical finding at this stage.
 
 ---
@@ -120,11 +121,9 @@ reference curve against which the simulator can be validated exactly.
 
 ## Implemented algorithms
 
-**None yet.** The table records the intended order of work, not completed work.
-
 | Component | Status |
 |---|---|
-| QPSK mapping and demapping | not started |
+| QPSK mapping and demapping | implemented in `modulation/qpsk.py`; unit-energy, Gray-mapped, tested against the AWGN closed form |
 | Flat Rayleigh channel generator | not started |
 | AWGN generator with SNR calibration | not started |
 | Zero forcing detector | not started |
@@ -138,26 +137,58 @@ reference curve against which the simulator can be validated exactly.
 
 Requires Python 3.10 or newer.
 
+The project is developed in a conda environment. No other virtual environment is used.
+
 ```bash
 git clone https://github.com/Amirhossein-Solati/wireless-phy-learning-lab.git
 cd wireless-phy-learning-lab
-python -m venv .venv
-source .venv/bin/activate
+conda create -n phy-lab python=3.11
+conda activate phy-lab
 pip install -e ".[dev,plot,config]"
 ```
 
-Run the test suite:
+Run the checks:
 
 ```bash
-pytest
+ruff check src tests
+pytest -q
 ```
 
 ---
 
 ## Usage examples
 
-Not available yet. Usage documentation will be added together with the first implemented component,
-and every example shown here will be executed before it is published.
+QPSK mapping, demapping, and the `Es = 2 Eb` conversion:
+
+```python
+import numpy as np
+
+from wireless_phy_lab.modulation import qpsk
+
+bits = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=np.uint8)
+symbols = qpsk.map_bits(bits)
+print(symbols)
+# [ 0.70710678+0.70710678j  0.70710678-0.70710678j -0.70710678+0.70710678j
+#  -0.70710678-0.70710678j]
+
+print(qpsk.demap(symbols))
+# [[0 0]
+#  [0 1]
+#  [1 0]
+#  [1 1]]
+
+print(np.mean(np.abs(symbols) ** 2))
+# 1.0
+
+# Es/N0 for a target Eb/N0, then the complex noise variance at that point.
+eb_n0_db = 6.0
+es_n0 = qpsk.es_n0_from_eb_n0(10.0 ** (eb_n0_db / 10.0))
+print(1.0 / es_n0)
+# 0.125594321575479
+```
+
+The bit array is interpreted along its last axis: `bits[..., 0]` drives the in-phase rail and
+`bits[..., 1]` the quadrature rail. Bit 0 selects the positive rail.
 
 ---
 

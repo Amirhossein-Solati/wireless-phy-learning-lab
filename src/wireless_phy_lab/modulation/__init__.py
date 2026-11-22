@@ -1,5 +1,14 @@
 """Modulation: constellation definition, bit mapping, and demapping.
 
-Implementation status: not yet implemented. The mathematical specification is
-approved before any code is written in this package.
+Implemented here:
+
+- :mod:`wireless_phy_lab.modulation.qpsk` -- Gray-mapped QPSK with unit
+  average symbol energy. Mapping, hard-decision demapping, and the single
+  ``Es = 2 Eb`` conversion.
+
+Other constellations are not implemented yet.
 """
+
+from wireless_phy_lab.modulation import qpsk
+
+__all__ = ["qpsk"]
