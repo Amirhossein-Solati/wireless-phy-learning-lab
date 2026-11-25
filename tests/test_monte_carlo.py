@@ -7,6 +7,8 @@ import pytest
 
 from wireless_phy_lab.detection import mmse_detect, zf_detect
 from wireless_phy_lab.evaluation.monte_carlo import simulate_ber_point
+from wireless_phy_lab.evaluation.reference import zf_rayleigh_ber
+from wireless_phy_lab.evaluation.replicates import simulate_ber_replicates
 from wireless_phy_lab.modulation import qpsk
 
 SEED = 20261127
@@ -155,3 +157,81 @@ def test_invalid_configuration_is_rejected(overrides: dict[str, object]) -> None
     config.update(overrides)
     with pytest.raises(ValueError):
         simulate_ber_point(_zf, **config)  # type: ignore[arg-type]
+
+
+def test_runner_passes_the_calibrated_complex_noise_variance() -> None:
+    """The detector must receive sigma^2 = 1/(Es/N0), not an SNR or Eb/N0."""
+    captured: dict[str, float] = {}
+
+    def recording_detector(
+        channel: np.ndarray, received: np.ndarray, noise_variance: float
+    ) -> np.ndarray:
+        captured["noise_variance"] = noise_variance
+        return zf_detect(channel, received)
+
+    eb_n0_db = 6.0
+    simulate_ber_point(
+        recording_detector,
+        nr=2,
+        nt=2,
+        eb_n0_db=eb_n0_db,
+        seed=SEED,
+        target_errors=1,
+        max_bits=4,
+        batch_symbols=1,
+    )
+
+    expected = 1.0 / float(qpsk.es_n0_from_eb_n0(10.0 ** (eb_n0_db / 10.0)))
+    assert captured["noise_variance"] == pytest.approx(expected, rel=1e-15)
+
+
+def test_zf_end_to_end_matches_closed_form() -> None:
+    """Full chain 2x2 ZF BER lies inside the replicate t-interval of (8.4)."""
+    es_n0 = float(qpsk.es_n0_from_eb_n0(10.0 ** (10.0 / 10.0)))
+    reference = float(zf_rayleigh_ber(es_n0, 1))
+    point = simulate_ber_replicates(
+        _zf,
+        nr=2,
+        nt=2,
+        eb_n0_db=10.0,
+        seed=SEED + 20,
+        replicates=20,
+        target_errors=100,
+        max_bits=200_000,
+        batch_symbols=5_000,
+    )
+    assert point.aggregate.ci_low <= reference <= point.aggregate.ci_high
+
+
+def test_zf_4x2_end_to_end_matches_m3_closed_form() -> None:
+    """The rectangular m=3 validation case of T-09 is exercised end to end."""
+    es_n0 = float(qpsk.es_n0_from_eb_n0(10.0 ** (12.0 / 10.0)))
+    reference = float(zf_rayleigh_ber(es_n0, 3))
+    point = simulate_ber_replicates(
+        _zf,
+        nr=4,
+        nt=2,
+        eb_n0_db=12.0,
+        seed=SEED + 21,
+        replicates=20,
+        target_errors=50,
+        max_bits=500_000,
+        batch_symbols=5_000,
+    )
+    assert point.aggregate.ci_low <= reference <= point.aggregate.ci_high
+
+
+def test_mmse_end_to_end_is_better_than_zf_at_low_snr() -> None:
+    kwargs = {
+        "nr": 2,
+        "nt": 2,
+        "eb_n0_db": 0.0,
+        "seed": SEED + 22,
+        "replicates": 10,
+        "target_errors": 100,
+        "max_bits": 100_000,
+        "batch_symbols": 5_000,
+    }
+    zf_point = simulate_ber_replicates(_zf, **kwargs)
+    mmse_point = simulate_ber_replicates(mmse_detect, **kwargs)
+    assert mmse_point.aggregate.ber < zf_point.aggregate.ber

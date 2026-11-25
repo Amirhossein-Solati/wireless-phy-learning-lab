@@ -6,8 +6,9 @@ Usage
     python experiments/plot_ber_mimo.py
 
 Reads ``results/ber_mimo.json`` and writes one figure per system to
-``results/figures/``. The solid lines are Monte Carlo estimates with 95% Wilson
-intervals; the dashed line is the exact ZF Rayleigh curve, equation (8.4).
+``results/figures/``. The solid lines are Monte Carlo means with 95% Student-t
+intervals over independent replicates; the dashed line is the exact ZF
+Rayleigh curve, equation (8.4).
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ DEFAULT_RESULTS = REPO_ROOT / "results" / "ber_mimo.json"
 STYLES = {
     "zf": {"fmt": "o-", "label": "ZF simulation"},
     "mmse": {"fmt": "s-", "label": "MMSE simulation"},
+    "ml": {"fmt": "^-", "label": "ML simulation"},
 }
 
 
@@ -98,7 +100,9 @@ def _plot_system(system: dict, results: list[dict], figure_dir: Path) -> Path:
     ax.text(
         0.03,
         0.05,
-        "Error bars: 95% Wilson CI\nMMSE is biased",
+        "Error bars: 95% t-interval\n"
+        f"{all_rows[0]['replicates']} independent replicates\n"
+        "MMSE is biased",
         transform=ax.transAxes,
         fontsize=8,
     )

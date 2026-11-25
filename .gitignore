@@ -2,7 +2,9 @@
 /AGENTS.md
 /PROJECT_BRIEF.md
 /TASKS.md
-/docs/
+/docs/*
+!/docs/mathematical_model.md
+!/docs/experiments.md
 
 # Environment
 .venv/
@@ -17,6 +19,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
 
 # Packaging / build artifacts
 build/

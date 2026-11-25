@@ -7,6 +7,6 @@ This package is under active research. Public API stability is not guaranteed
 before version 1.0.
 """
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 __all__ = ["__version__"]

@@ -147,7 +147,8 @@ def mmse_detect(
     with a direct linear solve. No explicit inverse is formed. This is the
     biased variant of decision D-05.
     For QPSK hard decisions the bias is irrelevant: the decision thresholds are
-    at zero and the bias is a real positive scale.
+    at zero and the bias is real. It is positive for a full-rank channel and
+    zero for a null stream.
 
     Parameters
     ----------

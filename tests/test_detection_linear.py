@@ -162,7 +162,7 @@ def test_mmse_bias_is_real_positive_and_unit_bounded(
 
     assert np.max(np.abs(bias.imag)) < 1e-12
     assert np.all(bias.real > 0.0)
-    assert np.all(bias.real <= 1.0)
+    assert np.all(bias.real < 1.0)
 
     expected_bias = 1.0 - noise_variance * np.real(np.diag(np.linalg.inv(regularised)))
     np.testing.assert_allclose(bias.real, expected_bias, rtol=1e-10, atol=1e-12)
@@ -171,6 +171,21 @@ def test_mmse_bias_is_real_positive_and_unit_bounded(
     np.testing.assert_array_equal(
         qpsk.demap(biased_estimates), qpsk.demap(biased_estimates / bias)
     )
+
+
+def test_mmse_bias_is_zero_for_a_null_stream() -> None:
+    """A rank-deficient channel has a zero MMSE bias on the null stream."""
+    channel = np.diag([1.0, 0.0]).astype(np.complex128)
+    received = np.array([1.0, 0.0], dtype=np.complex128)
+    sigma2 = 0.1
+
+    gram = channel.conj().T @ channel
+    gain = np.linalg.inv(gram + sigma2 * np.eye(2)) @ channel.conj().T @ channel
+    bias = np.diag(gain)
+
+    np.testing.assert_allclose(bias.real, [1.0 / 1.1, 0.0], rtol=0.0, atol=1e-12)
+    estimates = mmse_detect(channel, received, sigma2)
+    assert estimates[1] == 0.0
 
 
 def test_zf_error_covariance_matches_definition() -> None:

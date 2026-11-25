@@ -4,17 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wireless-phy-learning-lab"
-version = "0.0.1"
+version = "0.1.0"
 description = "A research framework for MIMO detection: classical baselines and model-driven detectors"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Amirhossein Solati" }]
 keywords = ["wireless", "mimo", "detection", "physical-layer", "research"]
+license = { text = "MIT" }
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Topic :: Scientific/Engineering",
 ]
 dependencies = [
     "numpy>=1.24",
@@ -32,6 +34,8 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/Amirhossein-Solati/wireless-phy-learning-lab"
+Repository = "https://github.com/Amirhossein-Solati/wireless-phy-learning-lab"
+Documentation = "https://github.com/Amirhossein-Solati/wireless-phy-learning-lab/blob/main/docs/mathematical_model.md"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -42,6 +46,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra"
 
 [tool.ruff]
